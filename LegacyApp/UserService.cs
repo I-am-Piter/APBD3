@@ -4,18 +4,27 @@ namespace LegacyApp
 {
     public class UserService
     {
-        public bool AddUser(string firstName, string lastName, string email, DateTime dateOfBirth, int clientId)
+        private bool AreCridentialsCorrect(string firstName, string lastName)
         {
             if (string.IsNullOrEmpty(firstName) || string.IsNullOrEmpty(lastName))
             {
                 return false;
             }
+            return true;
+        }
 
-            if (!email.Contains("@") && !email.Contains("."))
+        private bool IsEmailCorrect(string email)
+        {
+            if (email.Contains("@") && email.Contains("."))
             {
-                return false;
+                return true;
             }
 
+            return false;
+        }
+
+        private bool IsOver21(DateTime dateOfBirth)
+        {
             var now = DateTime.Now;
             int age = now.Year - dateOfBirth.Year;
             if (now.Month < dateOfBirth.Month || (now.Month == dateOfBirth.Month && now.Day < dateOfBirth.Day)) age--;
@@ -25,9 +34,13 @@ namespace LegacyApp
                 return false;
             }
 
+            return true;
+        }
+
+        private User makeUserForClient(int clientId,DateTime dateOfBirth,string email,string firstName, string lastName)
+        {
             var clientRepository = new ClientRepository();
             var client = clientRepository.GetById(clientId);
-
             var user = new User
             {
                 Client = client,
@@ -46,7 +59,7 @@ namespace LegacyApp
                 using (var userCreditService = new UserCreditService())
                 {
                     int creditLimit = userCreditService.GetCreditLimit(user.LastName, user.DateOfBirth);
-                    creditLimit = creditLimit * 2;
+                    creditLimit *= 2;
                     user.CreditLimit = creditLimit;
                 }
             }
@@ -59,8 +72,38 @@ namespace LegacyApp
                     user.CreditLimit = creditLimit;
                 }
             }
-            
+
+            return user;
+        }
+
+        private bool IsUserCreditLimited(User user)
+        {
             if (user.HasCreditLimit && user.CreditLimit < 500)
+            {
+                return true;
+            }
+
+            return false;
+        }
+        public bool AddUser(string firstName, string lastName, string email, DateTime dateOfBirth, int clientId)
+        {
+            if (!AreCridentialsCorrect(firstName,lastName))
+            {
+                return false;
+            }
+
+            if (!IsEmailCorrect(email))
+            {
+                return false;
+            }
+            if (!IsOver21(dateOfBirth))
+            {
+                return false;
+            }
+            
+            var user = makeUserForClient(clientId, dateOfBirth, email, firstName, lastName);
+            
+            if (IsUserCreditLimited(user))
             {
                 return false;
             }
